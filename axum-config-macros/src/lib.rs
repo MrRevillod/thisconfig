@@ -1,22 +1,7 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Error, Meta};
+use syn::{DeriveInput, Error, Meta, parse_macro_input};
 
-/// Derive macro para implementar automáticamente el trait `ConfigItem`.
-///
-/// # Ejemplo
-///
-/// ```rust
-/// use axum_config::config;
-/// use serde::Deserialize;
-///
-/// #[config(key = "database")]
-/// #[derive(Debug, Clone, Deserialize)]
-/// pub struct DatabaseConfig {
-///     pub host: String,
-///     pub port: u16,
-/// }
-/// ```
 #[proc_macro_attribute]
 pub fn config(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -29,8 +14,6 @@ pub fn config(args: TokenStream, input: TokenStream) -> TokenStream {
 
 fn config_impl(args: TokenStream, input: DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;
-
-    // Parsear el argumento key = "value"
     let args = syn::parse::<Meta>(args)?;
 
     let key = match args {

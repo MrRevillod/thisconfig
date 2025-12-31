@@ -9,6 +9,10 @@ repository = "https://github.com/MrRevillod/axum-config"
 keywords = ["axum", "config", "toml", "environment"]
 categories = ["config", "web-programming"]
 
+[[example]]
+name = "basic_example"
+path = "examples/basic.rs"
+
 [dependencies]
 axum = "0.8.8"
 axum-config-macros = { version = "0.1.0", path = "axum-config-macros" }

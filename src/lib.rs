@@ -5,11 +5,10 @@ mod extract;
 
 use serde::de::DeserializeOwned;
 
-pub use config::ApplicationConfig;
+pub use config::Config;
 pub use error::ConfigError;
 pub use extract::*;
 
-// Re-export proc macro
 pub use axum_config_macros::config;
 
 /// Trait for configuration section types.

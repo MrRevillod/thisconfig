@@ -8,7 +8,7 @@ use toml::{Table, Value};
 const CONFIG_ENV_VAR: &str = "CONFIG_FILE_PATH";
 const DEFAULT_CONFIG_PATH: &str = "config/config.toml";
 
-/// Application configuration loaded from TOML files.
+/// Configuration loaded from TOML files.
 ///
 /// Loads configuration with the following priority:
 /// 1. Explicit path via `from_path()`
@@ -16,11 +16,11 @@ const DEFAULT_CONFIG_PATH: &str = "config/config.toml";
 /// 3. `config/config.toml`
 /// 4. `<executable_dir>/config/config.toml`
 #[derive(Debug, Clone, Default)]
-pub struct ApplicationConfig {
+pub struct Config {
     inner: Arc<Table>,
 }
 
-impl ApplicationConfig {
+impl Config {
     /// Loads configuration using default priority order.
     ///
     /// # Errors
@@ -54,22 +54,22 @@ impl ApplicationConfig {
     /// Retrieves and deserializes a configuration section.
     ///
     /// Type `T` must implement `ConfigItem` via `#[config(key = "section")]` macro.
-    pub fn get<T: DeserializeOwned + ConfigItem>(&self) -> Result<T, ConfigError> {
+    pub fn get<T: DeserializeOwned + ConfigItem>(&self) -> Option<T> {
         let key = T::key();
 
         let Some(config_item) = self.inner.get(key).cloned() else {
-            return Err(ConfigError::key_not_found(key));
+            return None;
         };
 
         let value = Value::into_deserializer(config_item);
 
-        Ok(T::deserialize(value)?)
+        Some(T::deserialize(value).ok()?)
     }
 
     /// Retrieves a configuration section, panicking if not found or invalid.
     pub fn get_or_panic<T: DeserializeOwned + ConfigItem>(&self) -> T {
         self.get::<T>()
-            .unwrap_or_else(|_| panic!("Failed to load configuration for key '{}'", T::key()))
+            .unwrap_or_else(|| panic!("Failed to load configuration for key '{}'", T::key()))
     }
 
     /// Retrieves a configuration section, returning default if not found or invalid.
@@ -150,7 +150,7 @@ mod tests {
         let path = temp_file.path();
         fs::write(path, "[test]\nname = \"myapp\"\nport = 8080").expect("failed to write");
 
-        let config = ApplicationConfig::from_path(path).expect("failed to load config");
+        let config = Config::from_path(path).expect("failed to load config");
         let test_config = config
             .get::<TestConfig>()
             .expect("failed to get test config");
@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_from_path_nonexistent_file() {
-        let result = ApplicationConfig::from_path("/nonexistent/path/config.toml");
+        let result = Config::from_path("/nonexistent/path/config.toml");
         assert!(result.is_err());
     }
 
@@ -171,10 +171,10 @@ mod tests {
         let path = temp_file.path();
         fs::write(path, "[other]\nvalue = 1").expect("failed to write");
 
-        let config = ApplicationConfig::from_path(path).expect("failed to load config");
+        let config = Config::from_path(path).expect("failed to load config");
         let result = config.get::<TestConfig>();
 
-        assert!(result.is_err());
+        assert!(result.is_none());
     }
 
     #[test]
@@ -196,7 +196,7 @@ mod tests {
         let path = temp_file.path();
         fs::write(path, "[macro_test]\nvalue = \"works\"").expect("failed to write");
 
-        let config = ApplicationConfig::from_path(path).expect("failed to load config");
+        let config = Config::from_path(path).expect("failed to load config");
         let macro_config = config
             .get::<MacroConfig>()
             .expect("failed to get macro config");

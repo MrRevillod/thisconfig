@@ -46,12 +46,12 @@ user = "${DB_USER:admin}"
 
 ```rust
 use axum::{Router, routing::get, Extension};
-use axum_config::{ApplicationConfig, Config};
+use axum_config::{Config, ExtractConfig};
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    let config = ApplicationConfig::new().expect("Failed to load config");
+    let config = Config::new().expect("Failed to load config");
 
     let app = Router::new()
         .route("/", get(handler))
@@ -64,8 +64,12 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
+// If your handlers are separated into another modules,
+// it's recommended to rename `ExtractConfig` to `Config` for clarity.
+// use axum_config::ExtractConfig as Config;
+
 async fn handler(
-    Config(db_config): Config<DatabaseConfig>,
+    ExtractConfig(db_config): ExtractConfig<DatabaseConfig>,
 ) -> String {
     format!("DB: {}:{}", db_config.host, db_config.port)
 }
@@ -73,7 +77,7 @@ async fn handler(
 
 ## Configuration priority
 
-1. Explicit path: `ApplicationConfig::from_path("path/to/config.toml")`
+1. Explicit path: `Config::from_path("path/to/config.toml")`
 2. Environment variable: `CONFIG_FILE_PATH`
 3. Default path: `config/config.toml`
 4. Executable directory: `<exe_dir>/config/config.toml`
@@ -91,14 +95,14 @@ port = "${PORT}"              # Requires PORT to be defined
 ## Available methods
 
 ```rust
-let config = ApplicationConfig::new()?;
+let config = Config::new().expect("Failed to load config");
 
 // Get configuration
-let db: DatabaseConfig = config.get()?;
+let db = config.get::<DatabaseConfig>();
 
 // With default if missing
-let db: DatabaseConfig = config.get_or_default();
+let db = config.get_or_default::<DatabaseConfig>();
 
-// Panic if missing (not recommended)
-let db: DatabaseConfig = config.get_or_panic();
+// Panics if missing
+let db = config.get_or_panic::<DatabaseConfig>();
 ```

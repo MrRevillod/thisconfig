@@ -1,10 +1,10 @@
-use crate::{ApplicationConfig, ConfigError, ConfigItem};
+use crate::{Config, ConfigError, ConfigItem};
 use axum::{extract::FromRequestParts, http::request::Parts};
 use std::sync::Arc;
 
-pub struct Config<T>(pub T);
+pub struct ExtractConfig<T>(pub T);
 
-impl<S, T> FromRequestParts<S> for Config<T>
+impl<S, T> FromRequestParts<S> for ExtractConfig<T>
 where
     T: ConfigItem,
     S: Send + Sync,
@@ -14,12 +14,35 @@ where
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
         let config = parts
             .extensions
-            .get::<Arc<ApplicationConfig>>()
+            .get::<Arc<Config>>()
             .ok_or(ConfigError::ExtensionError)?;
 
-        let item = config.get::<T>()?;
+        let item = config
+            .get::<T>()
+            .ok_or(ConfigError::key_not_found(T::key()))?;
 
-        Ok(Config(item))
+        Ok(ExtractConfig(item))
+    }
+}
+
+pub struct ExtractOptionalConfig<T>(pub Option<T>);
+
+impl<S, T> FromRequestParts<S> for ExtractOptionalConfig<T>
+where
+    T: ConfigItem,
+    S: Send + Sync,
+{
+    type Rejection = ConfigError;
+
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+        let config = parts
+            .extensions
+            .get::<Arc<Config>>()
+            .ok_or(ConfigError::ExtensionError)?;
+
+        let item = config.get::<T>();
+
+        Ok(ExtractOptionalConfig(item))
     }
 }
 
@@ -44,7 +67,8 @@ mod tests {
         let mock = MockConfig {
             value: "test".to_string(),
         };
-        let config = Config(mock);
-        assert_eq!(config.0.value, "test");
+
+        let config = ExtractConfig(Some(mock.clone()));
+        assert_eq!(config.0.as_ref().unwrap().value, "test");
     }
 }
