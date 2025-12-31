@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde_json::json;
+use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -46,15 +46,22 @@ impl ConfigError {
     }
 }
 
+#[derive(Serialize)]
+struct ErrorResponse {
+    code: u16,
+    success: bool,
+    message: String,
+}
+
 impl IntoResponse for ConfigError {
     fn into_response(self) -> Response {
         tracing::error!("Configuration error: {}", self);
 
-        let json = json!({
-            "code": 500,
-            "success": false,
-            "message": "Internal Server Error",
-        });
+        let json = ErrorResponse {
+            code: 500,
+            success: false,
+            message: "Internal Server Error".to_string(),
+        };
 
         (StatusCode::INTERNAL_SERVER_ERROR, Json(json)).into_response()
     }

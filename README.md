@@ -60,6 +60,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
+
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -73,19 +74,18 @@ async fn handler(
 ## Configuration priority
 
 1. Explicit path: `ApplicationConfig::from_path("path/to/config.toml")`
-2. Environment variable: `AXUM_CONFIG_PATH`
+2. Environment variable: `CONFIG_FILE_PATH`
 3. Default path: `config/config.toml`
 4. Executable directory: `<exe_dir>/config/config.toml`
 
 ## Environment variables
 
-Supports interpolation in TOML:
+Supports interpolation in TOML with default values:
 
 ```toml
 [server]
 host = "${HOST:0.0.0.0}"      # Uses HOST or defaults to "0.0.0.0"
-port = ${PORT}                 # Requires PORT to be defined
-name = "${APP_NAME}"           # Requires APP_NAME to be defined
+port = "${PORT}"              # Requires PORT to be defined
 ```
 
 ## Available methods
