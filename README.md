@@ -58,6 +58,7 @@ async fn main() {
 
     println!("DB: {}:{}", db_config.host, db_config.port);
 }
+```
 
 ## Configuration Loading
 
