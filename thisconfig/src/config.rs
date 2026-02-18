@@ -69,7 +69,7 @@ impl Config {
     /// Panics if the configuration section is missing or cannot be deserialized. Recommended for
     /// critical configuration items that must be present for the application to function. For optional
     /// items, use `get` or `get_or_default` instead.
-    pub fn require<T: DeserializeOwned + ConfigItem>(&self) -> T {
+    pub fn expect<T: DeserializeOwned + ConfigItem>(&self) -> T {
         self.get::<T>()
             .unwrap_or_else(|| panic!("Failed to load configuration for key '{}'", T::key()))
     }

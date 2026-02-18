@@ -23,7 +23,7 @@ async fn main() {
         .build()
         .expect("Failed to load config file");
 
-    let server_config = app_config.require::<ServerConfig>();
+    let server_config = app_config.expect::<ServerConfig>();
 
     let app = Router::new()
         .route("/", get(server_info))

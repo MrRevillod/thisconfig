@@ -18,7 +18,7 @@ fn main() {
         .build()
         .expect("Failed to load config file");
 
-    let app_config = config.require::<AppConfig>();
+    let app_config = config.expect::<AppConfig>();
     let _ = config.get_or_default::<AppConfig>();
 
     println!("App Name: {}", app_config.name);

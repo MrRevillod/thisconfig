@@ -54,7 +54,7 @@ async fn main() {
         .build()
         .expect("Failed to load config");
 
-    let db_config = config.require::<DatabaseConfig>();
+    let db_config = config.expect::<DatabaseConfig>();
 
     println!("DB: {}:{}", db_config.host, db_config.port);
 }
@@ -90,7 +90,7 @@ database_url = "${DATABASE_URL}/my_database"  # Requires DATABASE_URL and append
 | --------------------- | ---------------------------------------------------------- |
 | `get<T>()`            | Returns the configuration section as `Option<T>`           |
 | `get_or_default<T>()` | Returns the config section or default if missing           |
-| `require<T>()`        | Returns the config section or panics if missing            |
+| `expect<T>()`         | Returns the config section or panics if missing            |
 | `get_validated<T>()`  | Returns the config section or validation errors if invalid |
 
 > **Note**: Enable the `validation` feature in your `Cargo.toml` for `get_validated<T>()` support. This requires your config structs to implement `Validate` from the `validator` crate.

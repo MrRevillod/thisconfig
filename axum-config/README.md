@@ -10,10 +10,8 @@ Configuration management for Axum applications. Load configuration from TOML fil
 
 ## Installation
 
-Note: `thisconfig` is also required for auto generated code by `config` macro. You can add both dependencies with:
-
 ```bash
-cargo add axum-config thisconfig
+cargo add axum-config
 ```
 
 ## Usage
@@ -50,6 +48,7 @@ user = "${DB_USER:admin}"
 use axum::{Router, routing::get, Extension};
 use axum_config::{Config, ExtractConfig};
 use std::sync::Arc;
+use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() {
@@ -62,7 +61,10 @@ async fn main() {
         .route("/", get(handler))
         .layer(Extension(config));
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let server_config = config.expect::<ServerConfig>();
+    let addr = format!("{}:{}", server_config.host, server_config.port));
+
+    let listener = TcpListener::bind(&addr)
         .await
         .unwrap();
 
@@ -110,7 +112,7 @@ database_url = "${DATABASE_URL}/my_database"  # Requires DATABASE_URL and append
 | --------------------- | ------------------------------------------------ |
 | `get<T>()`            | Returns the configuration section as `Option<T>` |
 | `get_or_default<T>()` | Returns the config section or default if missing |
-| `require<T>()`        | Returns the config section or panics if missing  |
+| `expect<T>()`         | Returns the config section or panics if missing  |
 
 ## Extractor Methods
 

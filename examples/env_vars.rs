@@ -18,7 +18,7 @@ fn main() {
         .build()
         .expect("Failed to load config file");
 
-    let env_config = config.require::<EnvConfig>();
+    let env_config = config.expect::<EnvConfig>();
 
     println!("Log Level: {}", env_config.log_level);
     println!("Non Defined Env Var: {}", env_config.non_defined_env_var);
