@@ -231,4 +231,94 @@ mod tests {
 
         assert_eq!(macro_config.value, "works");
     }
+
+    #[cfg(feature = "validation")]
+    #[test]
+    fn test_get_validated_success() {
+        use crate::ConfigItem;
+        use validator::Validate;
+
+        #[derive(Debug, Clone, Deserialize, Validate)]
+        struct ValidConfigTest {
+            #[validate(length(min = 1))]
+            name: String,
+            #[validate(range(min = 1, max = 100))]
+            value: u32,
+        }
+
+        impl ConfigItem for ValidConfigTest {
+            fn key() -> &'static str {
+                "valid_test"
+            }
+        }
+
+        #[derive(Debug, Clone, Deserialize, Validate)]
+        struct ValidConfig {
+            #[validate(length(min = 1))]
+            name: String,
+            #[validate(range(min = 1, max = 100))]
+            value: u32,
+        }
+
+        impl ConfigItem for ValidConfig {
+            fn key() -> &'static str {
+                "valid_test"
+            }
+        }
+
+        let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path = temp_file.path();
+        fs::write(path, "[valid_test]\nname = \"test\"\nvalue = 50").expect("failed to write");
+
+        let config = Config::from_path(path).expect("failed to load config");
+        let valid_config = config
+            .get_validated::<ValidConfigTest>()
+            .expect("failed to get validated config");
+
+        assert_eq!(valid_config.name, "test");
+        assert_eq!(valid_config.value, 50);
+    }
+
+    #[cfg(feature = "validation")]
+    #[test]
+    fn test_get_validated_failure() {
+        use crate::ConfigItem;
+        use validator::Validate;
+
+        #[derive(Debug, Clone, Deserialize, Validate)]
+        struct InvalidConfigTest {
+            #[validate(length(min = 3))]
+            name: String,
+        }
+
+        impl ConfigItem for InvalidConfigTest {
+            fn key() -> &'static str {
+                "invalid_test"
+            }
+        }
+
+        #[derive(Debug, Clone, Deserialize, Validate)]
+        struct InvalidConfig {
+            #[validate(length(min = 3))]
+            name: String,
+        }
+
+        impl ConfigItem for InvalidConfig {
+            fn key() -> &'static str {
+                "invalid_test"
+            }
+        }
+
+        let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path = temp_file.path();
+        fs::write(path, "[invalid_test]\nname = \"a\"").expect("failed to write"); // name too short
+
+        let config = Config::from_path(path).expect("failed to load config");
+        let result = config.get_validated::<InvalidConfigTest>();
+
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert!(e.to_string().contains("Validation failed"));
+        }
+    }
 }

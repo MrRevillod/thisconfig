@@ -1,0 +1,23 @@
+use axum_config::config;
+use serde::Deserialize;
+use thisconfig::Config;
+
+#[config(key = "env")]
+#[derive(Clone, Deserialize, Default)]
+struct EnvConfig {
+    log_level: String,
+    non_defined_env_var: String,
+    database_url: String,
+}
+
+fn main() {
+    dotenv::from_filename(".env").ok();
+
+    let config = Config::from_path("config.toml").expect("Failed to load config file");
+
+    let env_config = config.get_or_panic::<EnvConfig>();
+
+    println!("Log Level: {}", env_config.log_level);
+    println!("Non Defined Env Var: {}", env_config.non_defined_env_var);
+    println!("Database URL: {}", env_config.database_url);
+}

@@ -6,3 +6,8 @@ timeout = 60
 [app]
 name = "My Axum App"
 debug = true
+
+[env]
+log_level = "${RUST_LOG}"
+non_defined_env_var = "${NON_DEFINED_VAR:default_value}"
+database_url = "${DB_URL}/my_database"
