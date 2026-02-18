@@ -65,6 +65,7 @@ dependencies = [
  "thisconfig",
  "thisconfig-macros",
  "tracing",
+ "validator",
 ]
 
 [[package]]

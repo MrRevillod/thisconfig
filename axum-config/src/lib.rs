@@ -51,6 +51,35 @@ where
     }
 }
 
+#[cfg(feature = "validation")]
+pub struct ExtractValidatedConfig<T>(pub T);
+
+#[cfg(feature = "validation")]
+use validator::Validate;
+
+#[cfg(feature = "validation")]
+impl<S, T> FromRequestParts<S> for ExtractValidatedConfig<T>
+where
+    T: ConfigItem + Validate,
+    S: Send + Sync,
+{
+    type Rejection = ErrorResponse;
+
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+        let Some(config) = parts.extensions.get::<Config>() else {
+            tracing::error!("Configuration extension not found in request parts");
+            return Err(ErrorResponse::internal_server_error());
+        };
+
+        let item = config.get_validated::<T>().map_err(|e| {
+            tracing::error!("Configuration validation failed for '{}': {}", T::key(), e);
+            ErrorResponse::bad_request()  // 400 for validation errors
+        })?;
+
+        Ok(ExtractValidatedConfig(item))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -75,5 +104,30 @@ mod tests {
 
         let config = ExtractConfig(Some(mock.clone()));
         assert_eq!(config.0.as_ref().unwrap().value, "test");
+    }
+
+    #[cfg(feature = "validation")]
+    #[test]
+    fn test_validated_config_wrapper() {
+        use validator::Validate;
+
+        #[derive(Debug, Clone, Deserialize, Validate)]
+        struct ValidatedMockConfig {
+            #[validate(length(min = 1))]
+            value: String,
+        }
+
+        impl ConfigItem for ValidatedMockConfig {
+            fn key() -> &'static str {
+                "validated_mock"
+            }
+        }
+
+        let mock = ValidatedMockConfig {
+            value: "test".to_string(),
+        };
+
+        let config = ExtractValidatedConfig(mock.clone());
+        assert_eq!(config.0.value, "test");
     }
 }

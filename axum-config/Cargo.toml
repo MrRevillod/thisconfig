@@ -9,9 +9,13 @@ repository = "https://github.com/MrRevillod/axum-config"
 keywords = ["axum", "config", "toml", "environment"]
 categories = ["config", "web-programming"]
 
+[features]
+validation = ["thisconfig/validation", "validator/derive"]
+
 [dependencies]
 axum = "0.8.8"
 tracing = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thisconfig = { workspace = true }
 thisconfig-macros = { workspace = true }
+validator = { version = "0.20.0", features = ["derive"], optional = true }
