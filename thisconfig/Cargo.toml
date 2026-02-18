@@ -1,9 +1,10 @@
 [package]
 name = "thisconfig"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["Luciano Revillod <lrevillod2022@alu.uct.cl>"]
 license = "MIT"
+readme = "../README.md"
 description = "Config Loader for Rust Applications"
 repository = "https://github.com/MrRevillod/thisconfig"
 keywords = ["config", "toml", "environment"]

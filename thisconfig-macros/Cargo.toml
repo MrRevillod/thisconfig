@@ -3,9 +3,10 @@ name = "thisconfig-macros"
 version = "0.1.0"
 edition = "2024"
 authors = ["Luciano Revillod <lrevillod2022@alu.uct.cl>"]
+readme = "../README.md"
 license = "MIT"
 description = "Proc macros for thisconfig crate"
-repository = "https://github.com/MrRevillod/axum-config"
+repository = "https://github.com/MrRevillod/thisconfig"
 keywords = ["axum", "config"]
 categories = ["config"]
 

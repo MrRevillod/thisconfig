@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Error, Meta, parse_macro_input};
+use syn::{DeriveInput, Error, Expr, Lit, Meta, parse_macro_input};
 
 #[proc_macro_attribute]
 pub fn config(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -14,38 +14,28 @@ pub fn config(args: TokenStream, input: TokenStream) -> TokenStream {
 
 fn config_impl(args: TokenStream, input: &DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;
-    let args = syn::parse::<Meta>(args)?;
+    let meta = syn::parse::<Meta>(args)?;
 
-    let key = match args {
-        Meta::NameValue(nv) => {
-            if !nv.path.is_ident("key") {
-                return Err(Error::new_spanned(nv.path, "expected `key` attribute"));
-            }
+    let nv = meta.require_name_value().map_err(|_| {
+        Error::new_spanned(&meta, r#"expected format: #[config(key = "section_name")]"#)
+    })?;
 
-            match nv.value {
-                syn::Expr::Lit(expr_lit) => match expr_lit.lit {
-                    syn::Lit::Str(lit_str) => lit_str.value(),
-                    _ => {
-                        return Err(Error::new_spanned(
-                            expr_lit,
-                            "expected string literal for key",
-                        ));
-                    }
-                },
-                _ => {
-                    return Err(Error::new_spanned(
-                        nv.value,
-                        "expected string literal for key",
-                    ));
-                }
-            }
-        }
-        _ => {
-            return Err(Error::new_spanned(
-                args,
-                "expected format: #[config(key = \"section_name\")]",
-            ));
-        }
+    if !nv.path.is_ident("key") {
+        return Err(Error::new_spanned(&nv.path, "expected `key` attribute"));
+    }
+
+    let Expr::Lit(expr_lit) = &nv.value else {
+        return Err(Error::new_spanned(
+            &nv.value,
+            "expected string literal for key",
+        ));
+    };
+
+    let Lit::Str(lit_str) = &expr_lit.lit else {
+        return Err(Error::new_spanned(
+            &expr_lit.lit,
+            "expected string literal for key",
+        ));
     };
 
     let expanded = quote! {
@@ -53,10 +43,10 @@ fn config_impl(args: TokenStream, input: &DeriveInput) -> syn::Result<TokenStrea
 
         impl thisconfig::ConfigItem for #name {
             fn key() -> &'static str {
-                #key
+                #lit_str
             }
         }
     };
 
-    Ok(TokenStream::from(expanded))
+    Ok(expanded.into())
 }
