@@ -1,35 +1,25 @@
 mod config;
 mod env;
 mod error;
-mod extract;
-
-use serde::de::DeserializeOwned;
 
 pub use config::Config;
 pub use error::ConfigError;
-pub use extract::*;
 
-pub use axum_config_macros::config;
+use serde::de::DeserializeOwned;
 
 /// Trait for configuration section types.
 ///
 /// Types implementing this trait can be used with `Config::get()` to extract
 /// and deserialize specific sections from the configuration table.
-///
-/// # Example
-///
-/// ```ignore
-/// use axum_config::config;
-/// use serde::Deserialize;
-///
-/// #[config(key = "database")]
-/// #[derive(Debug, Clone, Deserialize)]
-/// pub struct DatabaseConfig {
-///     pub host: String,
-///     pub port: u16,
-/// }
-/// ```
 pub trait ConfigItem: DeserializeOwned + Clone + Send + Sync + 'static {
     /// Returns the TOML section key for this configuration type.
+    ///
+    /// # Example
+    ///
+    /// ```toml
+    /// [database]
+    /// host = "localhost"
+    /// ```
+    /// In this example, the `key()` method for `DatabaseConfig` would return `"database"`.
     fn key() -> &'static str;
 }

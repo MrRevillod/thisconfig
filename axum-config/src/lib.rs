@@ -1,6 +1,10 @@
-use crate::{Config, ConfigError, ConfigItem};
+mod error;
+
 use axum::{extract::FromRequestParts, http::request::Parts};
-use std::sync::Arc;
+use error::ErrorResponse;
+
+pub use thisconfig::*;
+pub use thisconfig_macros::*;
 
 pub struct ExtractConfig<T>(pub T);
 
@@ -9,17 +13,18 @@ where
     T: ConfigItem,
     S: Send + Sync,
 {
-    type Rejection = ConfigError;
+    type Rejection = ErrorResponse;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        let config = parts
-            .extensions
-            .get::<Arc<Config>>()
-            .ok_or(ConfigError::ExtensionError)?;
+        let Some(config) = parts.extensions.get::<Config>() else {
+            tracing::error!("Configuration extension not found in request parts");
+            return Err(ErrorResponse::internal_server_error());
+        };
 
-        let item = config
-            .get::<T>()
-            .ok_or(ConfigError::key_not_found(T::key()))?;
+        let Some(item) = config.get::<T>() else {
+            tracing::error!("Configuration item '{}' not found", T::key());
+            return Err(ErrorResponse::internal_server_error());
+        };
 
         Ok(ExtractConfig(item))
     }
@@ -32,13 +37,13 @@ where
     T: ConfigItem,
     S: Send + Sync,
 {
-    type Rejection = ConfigError;
+    type Rejection = ErrorResponse;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        let config = parts
-            .extensions
-            .get::<Arc<Config>>()
-            .ok_or(ConfigError::ExtensionError)?;
+        let Some(config) = parts.extensions.get::<Config>() else {
+            tracing::error!("Configuration extension not found in request parts");
+            return Err(ErrorResponse::internal_server_error());
+        };
 
         let item = config.get::<T>();
 

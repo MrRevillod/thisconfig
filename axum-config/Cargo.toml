@@ -1,0 +1,17 @@
+[package]
+name = "axum-config"
+version = "0.1.0"
+edition = "2024"
+authors = ["Luciano Revillod <lrevillod2022@alu.uct.cl>"]
+license = "MIT"
+description = "Config Loader for Axum Applications"
+repository = "https://github.com/MrRevillod/axum-config"
+keywords = ["axum", "config", "toml", "environment"]
+categories = ["config", "web-programming"]
+
+[dependencies]
+axum = "0.8.8"
+tracing = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thisconfig = { workspace = true }
+thisconfig-macros = { workspace = true }

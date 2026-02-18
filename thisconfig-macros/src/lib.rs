@@ -6,13 +6,13 @@ use syn::{DeriveInput, Error, Meta, parse_macro_input};
 pub fn config(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    match config_impl(args, input) {
+    match config_impl(args, &input) {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }
 }
 
-fn config_impl(args: TokenStream, input: DeriveInput) -> syn::Result<TokenStream> {
+fn config_impl(args: TokenStream, input: &DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;
     let args = syn::parse::<Meta>(args)?;
 
@@ -51,7 +51,7 @@ fn config_impl(args: TokenStream, input: DeriveInput) -> syn::Result<TokenStream
     let expanded = quote! {
         #input
 
-        impl axum_config::ConfigItem for #name {
+        impl thisconfig::ConfigItem for #name {
             fn key() -> &'static str {
                 #key
             }

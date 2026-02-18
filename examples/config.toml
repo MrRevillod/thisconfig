@@ -1,3 +1,8 @@
 [server]
 host = "127.0.0.1"
-port = 8080
+port = 3000
+timeout = 60
+
+[app]
+name = "My Axum App"
+debug = true

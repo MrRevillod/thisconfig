@@ -1,41 +1,20 @@
-use std::sync::Arc;
-
-use axum::{Extension, Router, response::IntoResponse, routing::get};
-use axum_config::{Config, ExtractConfig, config};
+use axum_config::config;
 use serde::Deserialize;
-use tokio::net::TcpListener;
+use thisconfig::Config;
 
-#[config(key = "server")]
-#[derive(Clone, Deserialize)]
-struct ServerConfig {
-    host: String,
-    port: u16,
+#[config(key = "app")]
+#[derive(Clone, Deserialize, Default)]
+struct AppConfig {
+    name: String,
+    debug: bool,
 }
 
-async fn app_info(ExtractConfig(config): ExtractConfig<ServerConfig>) -> impl IntoResponse {
-    format!("App running on {}:{}", config.host, config.port)
-}
+fn main() {
+    let config = Config::from_path("config.toml").expect("Failed to load config file");
 
-#[tokio::main]
-async fn main() {
-    let app_config = Config::from_path("examples/config.toml").expect("Failed to load config file");
+    let app_config = config.get_or_panic::<AppConfig>();
+    let _ = config.get_or_default::<AppConfig>();
 
-    let server_config = app_config.get_or_panic::<ServerConfig>();
-
-    let app = Router::new()
-        .route("/", get(app_info))
-        .layer(Extension(Arc::new(app_config)));
-
-    let listener = TcpListener::bind(format!("{}:{}", server_config.host, server_config.port))
-        .await
-        .expect("Failed to bind to address");
-
-    println!(
-        "Server running at http://{}:{}",
-        server_config.host, server_config.port
-    );
-
-    axum::serve(listener, app)
-        .await
-        .expect("Failed to start server");
+    println!("App Name: {}", app_config.name);
+    println!("Debug Mode: {}", app_config.debug);
 }

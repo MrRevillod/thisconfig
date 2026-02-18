@@ -5,6 +5,9 @@ use serde::de::{DeserializeOwned, IntoDeserializer};
 use std::{env::current_exe, fs, path::Path, str::FromStr, sync::Arc};
 use toml::{Table, Value};
 
+#[cfg(feature = "validation")]
+use validator::Validate;
+
 const CONFIG_ENV_VAR: &str = "CONFIG_FILE_PATH";
 const DEFAULT_CONFIG_PATH: &str = "config/config.toml";
 
@@ -57,13 +60,38 @@ impl Config {
     pub fn get<T: DeserializeOwned + ConfigItem>(&self) -> Option<T> {
         let key = T::key();
 
-        let Some(config_item) = self.inner.get(key).cloned() else {
-            return None;
-        };
+        let item = self.inner.get(key).cloned()?;
+        let value = Value::into_deserializer(item);
 
-        let value = Value::into_deserializer(config_item);
+        T::deserialize(value).ok()
+    }
 
-        Some(T::deserialize(value).ok()?)
+    #[cfg(feature = "validation")]
+    pub fn get_validated<T>(&self) -> Result<T, ConfigError>
+    where
+        T: DeserializeOwned + ConfigItem + Validate,
+    {
+        let key = T::key();
+
+        let item = self
+            .inner
+            .get(key)
+            .cloned()
+            .ok_or_else(|| ConfigError::KeyNotFound {
+                key: key.to_string(),
+            })?;
+
+        let value = Value::into_deserializer(item);
+
+        let deserialized: T = T::deserialize(value)?;
+
+        deserialized
+            .validate()
+            .map_err(|e| ConfigError::ValidationError {
+                message: format!("Validation failed for '{key}': {e}"),
+            })?;
+
+        Ok(deserialized)
     }
 
     /// Retrieves a configuration section, panicking if not found or invalid.

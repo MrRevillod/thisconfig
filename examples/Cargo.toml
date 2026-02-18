@@ -1,0 +1,24 @@
+[package]
+name = "examples"
+version = "0.1.0"
+edition = "2024"
+
+[[example]]
+name = "basic"
+path = "basic.rs"
+
+[[example]]
+name = "axum"
+path = "axum.rs"
+
+[[example]]
+name = "validation"
+path = "validation.rs"
+
+[dependencies]
+axum = "0.8.8"
+serde = { workspace = true, features = ["derive"] }
+thisconfig = { workspace = true, features = ["validation"] }
+axum-config = { workspace = true }
+tokio = { workspace = true }
+validator = { version = "0.20.0", features = ["derive"] }

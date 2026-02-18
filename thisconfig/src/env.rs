@@ -12,15 +12,14 @@ pub fn expand_env_variables(content: &str) -> Result<String, String> {
         let var_name = caps.get(1).unwrap().as_str();
         let default_value = caps.get(2).map_or("", |m| m.as_str());
 
-        let replacement = match env::var(var_name) {
-            Ok(value) => value,
-            Err(_) => {
-                if default_value.is_empty() {
-                    return Err(format!("environment variable '{var_name}' not found"));
-                } else {
-                    default_value.to_string()
-                }
+        let replacement = if let Ok(value) = env::var(var_name) {
+            value
+        } else {
+            if default_value.is_empty() {
+                return Err(format!("environment variable '{var_name}' not found"));
             }
+
+            default_value.to_string()
         };
 
         result = result.replace(full_match, &replacement);
