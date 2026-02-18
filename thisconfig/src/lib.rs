@@ -6,6 +6,7 @@ mod error;
 pub use builder::ConfigBuilder;
 pub use config::Config;
 pub use error::ConfigError;
+pub use thisconfig_macros::config;
 
 use serde::de::DeserializeOwned;
 

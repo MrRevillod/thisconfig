@@ -4,7 +4,6 @@ use axum::{extract::FromRequestParts, http::request::Parts};
 use error::ErrorResponse;
 
 pub use thisconfig::*;
-pub use thisconfig_macros::*;
 
 pub struct ExtractConfig<T>(pub T);
 

@@ -63,7 +63,6 @@ dependencies = [
  "axum",
  "serde",
  "thisconfig",
- "thisconfig-macros",
  "tracing",
  "validator",
 ]
@@ -915,6 +914,7 @@ dependencies = [
  "regex-lite",
  "serde",
  "tempfile",
+ "thisconfig-macros",
  "thiserror",
  "tokio",
  "toml",

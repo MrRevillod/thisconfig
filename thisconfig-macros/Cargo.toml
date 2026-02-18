@@ -10,6 +10,9 @@ repository = "https://github.com/MrRevillod/thisconfig"
 keywords = ["axum", "config"]
 categories = ["config"]
 
+[features]
+axum = []
+
 [lib]
 proc-macro = true
 

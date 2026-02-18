@@ -1,4 +1,4 @@
-use crate::{env::expand_env_variables, Config, ConfigError};
+use crate::{Config, ConfigError, env::expand_env_variables};
 use std::{fs, path::PathBuf, sync::Arc};
 use toml::Table;
 use tracing::{error, warn};

@@ -1,6 +1,5 @@
-use axum_config::config;
 use serde::Deserialize;
-use thisconfig::Config;
+use thisconfig::{Config, config};
 
 #[config(key = "app")]
 #[derive(Clone, Deserialize, Default)]
