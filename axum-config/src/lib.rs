@@ -5,6 +5,12 @@ use error::ErrorResponse;
 
 pub use thisconfig::*;
 
+#[cfg(feature = "byte-unit")]
+pub use thisconfig::ByteConfig;
+
+#[cfg(feature = "time-unit")]
+pub use thisconfig::TimeConfig;
+
 pub struct ExtractConfig<T>(pub T);
 
 impl<S, T> FromRequestParts<S> for ExtractConfig<T>

@@ -16,9 +16,8 @@ async fn server_info(ExtractConfig(server): ExtractConfig<ServerConfig>) -> impl
 
 #[tokio::main]
 async fn main() {
-    dotenv::from_filename(".env").ok();
-
     let app_config = Config::builder()
+        .add_dotenv()
         .add_required_file("config.toml")
         .build()
         .expect("Failed to load config file");

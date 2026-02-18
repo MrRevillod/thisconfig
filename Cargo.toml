@@ -8,9 +8,9 @@ members = [
 ]
 
 [workspace.dependencies]
-thisconfig = { path = "thisconfig", version = "0.2.0" }
-thisconfig-macros = { path = "thisconfig-macros", version = "0.2.0" }
-axum-config = { path = "axum-config", version = "0.2.0" }
+thisconfig = { path = "thisconfig", version = "0.2.1" }
+thisconfig-macros = { path = "thisconfig-macros", version = "0.2.1" }
+axum-config = { path = "axum-config", version = "0.2.1" }
 
 tracing = { version = "0.1.44" }
 serde = { version = "1.0.228", features = ["derive"] }

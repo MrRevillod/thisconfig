@@ -19,11 +19,14 @@ path = "validation.rs"
 name = "env_vars"
 path = "env_vars.rs"
 
+[[example]]
+name = "units"
+path = "units.rs"
+
 [dependencies]
 axum = "0.8.8"
 serde = { workspace = true, features = ["derive"] }
-thisconfig = { workspace = true, features = ["validation"] }
-axum-config = { workspace = true }
+thisconfig = { workspace = true, features = ["validation", "dotenv"] }
+axum-config = { workspace = true, features = ["byte-unit", "time-unit"] }
 validator = { version = "0.20.0", features = ["derive"] }
-dotenv = "0.15.0"
 tokio = { version = "1.0", features = ["full"] }

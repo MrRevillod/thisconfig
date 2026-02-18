@@ -41,6 +41,22 @@ impl ConfigBuilder {
         self
     }
 
+    #[cfg(feature = "dotenv")]
+    /// Loads environment variables from a specified `.env` file following the
+    /// [dotenv](https://crates.io/crates/dotenv) convention.
+    pub fn add_dotenv_file<P: Into<PathBuf>>(self, path: P) -> Self {
+        dotenv::from_filename(path.into()).ok();
+        self
+    }
+
+    #[cfg(feature = "dotenv")]
+    /// Loads environment variables from a `.env` file following the
+    /// [dotenv](https://crates.io/crates/dotenv) convention.
+    pub fn add_dotenv(self) -> Self {
+        dotenv::dotenv().ok();
+        self
+    }
+
     fn load(sources: Vec<Source>) -> Result<Config, ConfigError> {
         let mut merged = Table::new();
 

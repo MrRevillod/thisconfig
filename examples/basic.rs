@@ -9,9 +9,8 @@ struct AppConfig {
 }
 
 fn main() {
-    dotenv::from_filename(".env").ok();
-
     let config = Config::builder()
+        .add_dotenv()
         .add_file("nonexistent.toml")
         .add_required_file("config.toml")
         .add_toml_str("[extra]\nversion = \"1.0\"")

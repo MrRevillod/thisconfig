@@ -1,6 +1,6 @@
 [package]
 name = "axum-config"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 authors = ["Luciano Revillod <lrevillod2022@alu.uct.cl>"]
 license = "MIT"
@@ -12,6 +12,9 @@ categories = ["config", "web-programming"]
 
 [features]
 validation = ["thisconfig/validation", "validator/derive"]
+byte-unit = ["thisconfig/byte-unit"]
+time-unit = ["thisconfig/time-unit"]
+dotenv = ["thisconfig/dotenv"]
 
 [dependencies]
 axum = "0.8.8"

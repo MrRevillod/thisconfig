@@ -2,11 +2,18 @@ mod builder;
 mod config;
 mod env;
 mod error;
+mod utils;
 
 pub use builder::ConfigBuilder;
 pub use config::Config;
 pub use error::ConfigError;
 pub use thisconfig_macros::config;
+
+#[cfg(feature = "byte-unit")]
+pub use utils::byte_unit::ByteConfig;
+
+#[cfg(feature = "time-unit")]
+pub use utils::time_unit::TimeConfig;
 
 use serde::de::DeserializeOwned;
 
