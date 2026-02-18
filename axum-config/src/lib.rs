@@ -72,8 +72,8 @@ where
         };
 
         let item = config.get_validated::<T>().map_err(|e| {
-            tracing::error!("Configuration validation failed for '{}': {}", T::key(), e);
-            ErrorResponse::bad_request()  // 400 for validation errors
+            tracing::error!("Configuration validation failed for '{}': {e}", T::key());
+            ErrorResponse::internal_server_error()
         })?;
 
         Ok(ExtractValidatedConfig(item))

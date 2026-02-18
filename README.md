@@ -1,17 +1,17 @@
-# Axum Config
+# ThisConfig - Config Loader
 
-Configuration management for Axum applications. Load configuration from TOML files with environment variable support.
+Configuration management for Rust applications. Load configuration from TOML files with support for environment variable interpolation and multi-file merging.
 
 ## Features
 
 - Load configuration from TOML files
+- Multi file support with merging and overriding
 - Environment variable interpolation (`${VAR}` and `${VAR:default}`)
-- Integration with Axum as extractor
 
 ## Installation
 
 ```bash
-cargo add axum-config
+cargo add thisconfig
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ cargo add axum-config
 
 ```rust
 use serde::Deserialize;
-use axum_config::config;
+use thisconfig::config;
 
 #[config(key = "database")]
 #[derive(Debug, Clone, Deserialize)]
@@ -44,43 +44,34 @@ user = "${DB_USER:admin}"
 
 ### 3. Use in your application
 
-```rust
-use axum::{Router, routing::get, Extension};
-use axum_config::{Config, ExtractConfig};
-use std::sync::Arc;
+````rust
+use thisconfig::Config;
 
 #[tokio::main]
 async fn main() {
-    let config = Config::new().expect("Failed to load config");
+    let config = Config::builder()
+        .add_file("config/config.toml")
+        .build()
+        .expect("Failed to load config");
 
-    let app = Router::new()
-        .route("/", get(handler))
-        .layer(Extension(Arc::new(config)));
+    let db_config = config.require::<DatabaseConfig>();
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
-        .await
-        .unwrap();
-
-    axum::serve(listener, app).await.unwrap();
+    println!("DB: {}:{}", db_config.host, db_config.port);
 }
 
-// If your handlers are separated into another modules,
-// it's recommended to rename `ExtractConfig` to `Config` for clarity.
-// use axum_config::ExtractConfig as Config;
+## Configuration Loading
 
-async fn handler(
-    ExtractConfig(db_config): ExtractConfig<DatabaseConfig>,
-) -> String {
-    format!("DB: {}:{}", db_config.host, db_config.port)
-}
-```
+Use `Config::builder()` to specify configuration files. Files can be optional (loaded if present) or required (must exist). You can also add TOML strings directly.
 
-## Configuration priority
+```rust
+let config = Config::builder()
+    .add_file("config/config.toml")  // optional
+    .add_required_file("secrets.toml")  // required
+    .add_toml_str("[extra]\nkey = 'value'")  // in-memory TOML
+    .build()?;
+````
 
-1. Explicit path: `Config::from_path("path/to/config.toml")`
-2. Environment variable: `CONFIG_FILE_PATH`
-3. Default path: `config/config.toml`
-4. Executable directory: `<exe_dir>/config/config.toml`
+Files are merged in order, with later files overriding earlier ones.
 
 ## Environment variables
 
@@ -90,19 +81,20 @@ Supports interpolation in TOML with default values:
 [server]
 host = "${HOST:0.0.0.0}"      # Uses HOST or defaults to "0.0.0.0"
 port = "${PORT}"              # Requires PORT to be defined
+database_url = "${DATABASE_URL}/my_database"  # Requires DATABASE_URL and appends "/my_database"
 ```
 
-## Available methods
+## Config Methods
 
-```rust
-let config = Config::new().expect("Failed to load config");
+| Method                | Description                                                |
+| --------------------- | ---------------------------------------------------------- |
+| `get<T>()`            | Returns the configuration section as `Option<T>`           |
+| `get_or_default<T>()` | Returns the config section or default if missing           |
+| `require<T>()`        | Returns the config section or panics if missing            |
+| `get_validated<T>()`  | Returns the config section or validation errors if invalid |
 
-// Get configuration
-let db = config.get::<DatabaseConfig>();
+> **Note**: Enable the `validation` feature in your `Cargo.toml` for `get_validated<T>()` support. This requires your config structs to implement `Validate` from the `validator` crate.
 
-// With default if missing
-let db = config.get_or_default::<DatabaseConfig>();
+## Examples
 
-// Panics if missing
-let db = config.get_or_panic::<DatabaseConfig>();
-```
+See the [examples](./examples) directory for complete working examples of using `thisconfig`.

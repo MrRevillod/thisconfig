@@ -15,7 +15,12 @@ struct ServerConfig {
 }
 
 fn main() {
-    let config = Config::from_path("config.toml").expect("Failed to load config file");
+    dotenv::from_filename(".env").ok();
+
+    let config = Config::builder()
+        .add_file("config.toml")
+        .build()
+        .expect("Failed to load config file");
 
     let server_config = config
         .get_validated::<ServerConfig>()

@@ -10,9 +10,16 @@ struct AppConfig {
 }
 
 fn main() {
-    let config = Config::from_path("config.toml").expect("Failed to load config file");
+    dotenv::from_filename(".env").ok();
 
-    let app_config = config.get_or_panic::<AppConfig>();
+    let config = Config::builder()
+        .add_file("nonexistent.toml")
+        .add_required_file("config.toml")
+        .add_toml_str("[extra]\nversion = \"1.0\"")
+        .build()
+        .expect("Failed to load config file");
+
+    let app_config = config.require::<AppConfig>();
     let _ = config.get_or_default::<AppConfig>();
 
     println!("App Name: {}", app_config.name);

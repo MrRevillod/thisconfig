@@ -16,9 +16,14 @@ async fn server_info(ExtractConfig(server): ExtractConfig<ServerConfig>) -> impl
 
 #[tokio::main]
 async fn main() {
-    let app_config = Config::from_path("config.toml").expect("Failed to load config file");
+    dotenv::from_filename(".env").ok();
 
-    let server_config = app_config.get_or_panic::<ServerConfig>();
+    let app_config = Config::builder()
+        .add_required_file("config.toml")
+        .build()
+        .expect("Failed to load config file");
+
+    let server_config = app_config.require::<ServerConfig>();
 
     let app = Router::new()
         .route("/", get(server_info))

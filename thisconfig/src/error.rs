@@ -26,6 +26,9 @@ pub enum ConfigError {
     #[error("Validation error: {message}")]
     ValidationError { message: String },
 
+    #[error("No configuration sources configured")]
+    NoSourcesConfigured,
+
     #[error("Current executable directory not found")]
     ExeDirNotFound,
 }

@@ -1,62 +1,26 @@
-use crate::env::expand_env_variables;
-use crate::{ConfigError, ConfigItem};
-
+use crate::{ConfigBuilder, ConfigError, ConfigItem};
 use serde::de::{DeserializeOwned, IntoDeserializer};
-use std::{env::current_exe, fs, path::Path, str::FromStr, sync::Arc};
+use std::sync::Arc;
 use toml::{Table, Value};
 
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-const CONFIG_ENV_VAR: &str = "CONFIG_FILE_PATH";
-const DEFAULT_CONFIG_PATH: &str = "config/config.toml";
-
-/// Configuration loaded from TOML files.
-///
-/// Loads configuration with the following priority:
-/// 1. Explicit path via `from_path()`
-/// 2. `CONFIG_FILE_PATH` environment variable
-/// 3. `config/config.toml`
-/// 4. `<executable_dir>/config/config.toml`
 #[derive(Debug, Clone, Default)]
 pub struct Config {
-    inner: Arc<Table>,
+    pub(crate) inner: Arc<Table>,
 }
 
 impl Config {
-    /// Loads configuration using default priority order.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ConfigError` if no configuration file is found or contains invalid TOML.
-    pub fn new() -> Result<Self, ConfigError> {
-        let content = Self::load_config_file(None)?;
-
-        let expanded = expand_env_variables(&content).map_err(ConfigError::interpolation_error)?;
-
-        Ok(Self {
-            inner: Arc::new(Table::from_str(&expanded)?),
-        })
+    pub fn builder() -> ConfigBuilder {
+        ConfigBuilder::default()
     }
 
-    /// Loads configuration from a specific file path without fallbacks.
+    /// Retrieves a configuration section.
     ///
-    /// # Errors
+    /// # Returns
     ///
-    /// Returns `ConfigError::FileNotFound` if the file doesn't exist.
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
-        let content = Self::load_config_file(Some(path.as_ref()))?;
-
-        let expanded = expand_env_variables(&content).map_err(ConfigError::interpolation_error)?;
-
-        Ok(Self {
-            inner: Arc::new(Table::from_str(&expanded)?),
-        })
-    }
-
-    /// Retrieves and deserializes a configuration section.
-    ///
-    /// Type `T` must implement `ConfigItem` via `#[config(key = "section")]` macro.
+    /// `Some(T)` if found, `None` otherwise.
     pub fn get<T: DeserializeOwned + ConfigItem>(&self) -> Option<T> {
         let key = T::key();
 
@@ -67,6 +31,11 @@ impl Config {
     }
 
     #[cfg(feature = "validation")]
+    /// Retrieves and validates a configuration section.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ConfigError` for missing keys or validation errors.
     pub fn get_validated<T>(&self) -> Result<T, ConfigError>
     where
         T: DeserializeOwned + ConfigItem + Validate,
@@ -94,71 +63,33 @@ impl Config {
         Ok(deserialized)
     }
 
-    /// Retrieves a configuration section, panicking if not found or invalid.
-    pub fn get_or_panic<T: DeserializeOwned + ConfigItem>(&self) -> T {
+    /// Retrieves a required configuration section, panicking if not found or invalid.
+    ///
+    /// # Panics
+    /// Panics if the configuration section is missing or cannot be deserialized. Recommended for
+    /// critical configuration items that must be present for the application to function. For optional
+    /// items, use `get` or `get_or_default` instead.
+    pub fn require<T: DeserializeOwned + ConfigItem>(&self) -> T {
         self.get::<T>()
             .unwrap_or_else(|| panic!("Failed to load configuration for key '{}'", T::key()))
     }
 
     /// Retrieves a configuration section, returning default if not found or invalid.
+    ///
+    /// # Returns
+    ///
+    /// The section or its default.
     pub fn get_or_default<T: DeserializeOwned + ConfigItem + Default>(&self) -> T {
         self.get::<T>().unwrap_or_default()
-    }
-
-    fn load_config_file(path: Option<&Path>) -> Result<String, ConfigError> {
-        if let Some(p) = path {
-            if p.exists() {
-                return Ok(fs::read_to_string(p)?);
-            }
-
-            return Err(ConfigError::FileNotFound(
-                p.to_str().unwrap_or_default().to_string(),
-            ));
-        }
-
-        if let Ok(env_path) = std::env::var(CONFIG_ENV_VAR) {
-            let env_path = Path::new(&env_path);
-
-            if env_path.exists() {
-                return Ok(fs::read_to_string(env_path)?);
-            }
-
-            eprintln!(
-                "Warning: {} is set to '{}' but file does not exist. Falling back to default paths.",
-                CONFIG_ENV_VAR,
-                env_path.display()
-            );
-        }
-
-        let default_path = Path::new(DEFAULT_CONFIG_PATH);
-
-        if default_path.exists() {
-            return Ok(fs::read_to_string(default_path)?);
-        }
-
-        Self::load_from_exe_directory()
-    }
-
-    fn load_from_exe_directory() -> Result<String, ConfigError> {
-        let exe_path = current_exe().map_err(|_| ConfigError::ExeDirNotFound)?;
-        let exe_dir = exe_path.parent().ok_or(ConfigError::ExeDirNotFound)?;
-
-        let fallback_path = exe_dir.join(DEFAULT_CONFIG_PATH);
-
-        if !fallback_path.exists() {
-            return Err(ConfigError::FileNotFound(
-                fallback_path.to_str().unwrap_or_default().to_string(),
-            ));
-        }
-
-        Ok(fs::read_to_string(fallback_path)?)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{ConfigBuilder, ConfigError};
     use serde::Deserialize;
+    use std::fs;
 
     #[derive(Debug, Clone, Deserialize, PartialEq)]
     struct TestConfig {
@@ -178,7 +109,10 @@ mod tests {
         let path = temp_file.path();
         fs::write(path, "[test]\nname = \"myapp\"\nport = 8080").expect("failed to write");
 
-        let config = Config::from_path(path).expect("failed to load config");
+        let config = Config::builder()
+            .add_required_file(path)
+            .build()
+            .expect("failed to load config");
         let test_config = config
             .get::<TestConfig>()
             .expect("failed to get test config");
@@ -189,7 +123,9 @@ mod tests {
 
     #[test]
     fn test_from_path_nonexistent_file() {
-        let result = Config::from_path("/nonexistent/path/config.toml");
+        let result = Config::builder()
+            .add_required_file("/nonexistent/path/config.toml")
+            .build();
         assert!(result.is_err());
     }
 
@@ -199,7 +135,10 @@ mod tests {
         let path = temp_file.path();
         fs::write(path, "[other]\nvalue = 1").expect("failed to write");
 
-        let config = Config::from_path(path).expect("failed to load config");
+        let config = Config::builder()
+            .add_required_file(path)
+            .build()
+            .expect("failed to load config");
         let result = config.get::<TestConfig>();
 
         assert!(result.is_none());
@@ -224,7 +163,10 @@ mod tests {
         let path = temp_file.path();
         fs::write(path, "[macro_test]\nvalue = \"works\"").expect("failed to write");
 
-        let config = Config::from_path(path).expect("failed to load config");
+        let config = Config::builder()
+            .add_required_file(path)
+            .build()
+            .expect("failed to load config");
         let macro_config = config
             .get::<MacroConfig>()
             .expect("failed to get macro config");
@@ -252,25 +194,14 @@ mod tests {
             }
         }
 
-        #[derive(Debug, Clone, Deserialize, Validate)]
-        struct ValidConfig {
-            #[validate(length(min = 1))]
-            name: String,
-            #[validate(range(min = 1, max = 100))]
-            value: u32,
-        }
-
-        impl ConfigItem for ValidConfig {
-            fn key() -> &'static str {
-                "valid_test"
-            }
-        }
-
         let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
         let path = temp_file.path();
         fs::write(path, "[valid_test]\nname = \"test\"\nvalue = 50").expect("failed to write");
 
-        let config = Config::from_path(path).expect("failed to load config");
+        let config = Config::builder()
+            .add_required_file(path)
+            .build()
+            .expect("failed to load config");
         let valid_config = config
             .get_validated::<ValidConfigTest>()
             .expect("failed to get validated config");
@@ -297,28 +228,135 @@ mod tests {
             }
         }
 
-        #[derive(Debug, Clone, Deserialize, Validate)]
-        struct InvalidConfig {
-            #[validate(length(min = 3))]
-            name: String,
-        }
-
-        impl ConfigItem for InvalidConfig {
-            fn key() -> &'static str {
-                "invalid_test"
-            }
-        }
-
         let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
         let path = temp_file.path();
-        fs::write(path, "[invalid_test]\nname = \"a\"").expect("failed to write"); // name too short
+        fs::write(path, "[invalid_test]\nname = \"a\"").expect("failed to write");
 
-        let config = Config::from_path(path).expect("failed to load config");
+        let config = Config::builder()
+            .add_required_file(path)
+            .build()
+            .expect("failed to load config");
         let result = config.get_validated::<InvalidConfigTest>();
 
         assert!(result.is_err());
         if let Err(e) = result {
             assert!(e.to_string().contains("Validation failed"));
         }
+    }
+
+    #[test]
+    fn test_builder_add_file() {
+        let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path = temp_file.path();
+        fs::write(path, "[test]\nname = \"builder\"\nport = 9000").expect("failed to write");
+
+        let config = Config::builder()
+            .add_file(path)
+            .build()
+            .expect("failed to build config");
+
+        let test_config = config
+            .get::<TestConfig>()
+            .expect("failed to get test config");
+
+        assert_eq!(test_config.name, "builder");
+        assert_eq!(test_config.port, 9000);
+    }
+
+    #[test]
+    fn test_builder_add_required_file_missing() {
+        let result = Config::builder()
+            .add_required_file("/nonexistent/path/config.toml")
+            .build();
+
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert!(matches!(e, ConfigError::FileNotFound(_)));
+        }
+    }
+
+    #[test]
+    fn test_builder_merge_order() {
+        let temp_file1 = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path1 = temp_file1.path();
+        fs::write(path1, "[test]\nname = \"first\"\nport = 8080").expect("failed to write");
+
+        let temp_file2 = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path2 = temp_file2.path();
+        fs::write(path2, "[test]\nname = \"second\"").expect("failed to write");
+
+        let config = ConfigBuilder::default()
+            .add_file(path1)
+            .add_file(path2)
+            .build()
+            .expect("failed to build config");
+
+        let test_config = config
+            .get::<TestConfig>()
+            .expect("failed to get test config");
+
+        assert_eq!(test_config.name, "second");
+        assert_eq!(test_config.port, 8080);
+    }
+
+    #[test]
+    fn test_builder_add_toml_str() {
+        let toml_str = r#"
+[test]
+name = "toml_str"
+port = 9999
+"#;
+
+        let config = Config::builder()
+            .add_toml_str(toml_str)
+            .build()
+            .expect("failed to build config");
+
+        let test_config = config
+            .get::<TestConfig>()
+            .expect("failed to get test config");
+
+        assert_eq!(test_config.name, "toml_str");
+        assert_eq!(test_config.port, 9999);
+    }
+
+    #[test]
+    fn test_builder_deep_merge() {
+        let temp_file1 = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path1 = temp_file1.path();
+        fs::write(
+            path1,
+            r#"
+[test]
+name = "app"
+port = 8080
+
+[test.nested]
+key1 = "value1"
+"#,
+        )
+        .expect("failed to write");
+
+        let temp_file2 = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path2 = temp_file2.path();
+        fs::write(
+            path2,
+            r#"
+[test]
+port = 9000
+
+[test.nested]
+key2 = "value2"
+"#,
+        )
+        .expect("failed to write");
+
+        let config = Config::builder()
+            .add_file(path1)
+            .add_file(path2)
+            .build()
+            .expect("failed to build config");
+
+        assert!(config.inner.get("test").is_some());
     }
 }

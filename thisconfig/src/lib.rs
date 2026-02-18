@@ -1,7 +1,9 @@
+mod builder;
 mod config;
 mod env;
 mod error;
 
+pub use builder::ConfigBuilder;
 pub use config::Config;
 pub use error::ConfigError;
 

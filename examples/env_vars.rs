@@ -13,9 +13,12 @@ struct EnvConfig {
 fn main() {
     dotenv::from_filename(".env").ok();
 
-    let config = Config::from_path("config.toml").expect("Failed to load config file");
+    let config = Config::builder()
+        .add_file("config.toml")
+        .build()
+        .expect("Failed to load config file");
 
-    let env_config = config.get_or_panic::<EnvConfig>();
+    let env_config = config.require::<EnvConfig>();
 
     println!("Log Level: {}", env_config.log_level);
     println!("Non Defined Env Var: {}", env_config.non_defined_env_var);
