@@ -7,6 +7,7 @@ Configuration management for Axum applications. Load configuration from TOML fil
 - Load configuration from TOML files
 - Environment variable interpolation (`${VAR}` and `${VAR:default}`)
 - Integration with Axum as extractor
+- File loading directly on config files (`key = "file:path"`)
 
 ## Installation
 

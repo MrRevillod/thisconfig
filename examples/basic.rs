@@ -8,6 +8,12 @@ struct AppConfig {
     debug: bool,
 }
 
+#[config(key = "with-file")]
+#[derive(Clone, Deserialize)]
+struct WithFileConfig {
+    cargo_toml: String,
+}
+
 fn main() {
     let config = Config::builder()
         .add_dotenv()
@@ -20,6 +26,10 @@ fn main() {
     let app_config = config.expect::<AppConfig>();
     let _ = config.get_or_default::<AppConfig>();
 
+    let with_file_config = config.expect::<WithFileConfig>();
+
     println!("App Name: {}", app_config.name);
     println!("Debug Mode: {}", app_config.debug);
+
+    println!("Cargo.toml Content:\n{}", with_file_config.cargo_toml);
 }

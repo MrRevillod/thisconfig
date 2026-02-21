@@ -81,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "axum-config"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "axum",
  "serde",
@@ -1302,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "thisconfig"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "byte-unit",
  "dotenv",
@@ -1320,7 +1320,7 @@ dependencies = [
 
 [[package]]
 name = "thisconfig-macros"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "quote",
  "syn 2.0.116",

@@ -1,6 +1,6 @@
 [package]
 name = "thisconfig"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 authors = ["Luciano Revillod <lrevillod2022@alu.uct.cl>"]
 license = "MIT"
@@ -11,14 +11,16 @@ keywords = ["config", "toml", "environment"]
 categories = ["config", "web-programming"]
 
 [features]
+default = ["macros"]
 time-unit = ["dep:duration-str"]
 byte-unit = ["dep:byte-unit"]
 axum = ["thisconfig-macros/axum"]
 validation = ["validator/derive"]
 dotenv = ["dep:dotenv"]
+macros = ["dep:thisconfig-macros"]
 
 [dependencies]
-thisconfig-macros = { workspace = true }
+thisconfig-macros = { workspace = true, optional = true }
 
 tracing = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

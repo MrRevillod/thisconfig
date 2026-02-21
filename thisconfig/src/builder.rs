@@ -1,4 +1,4 @@
-use crate::{Config, ConfigError, env::expand_env_variables};
+use crate::{Config, ConfigError, interpolation::Interpolator};
 use std::{fs, path::PathBuf, sync::Arc};
 use toml::Table;
 use tracing::{error, warn};
@@ -65,10 +65,13 @@ impl ConfigBuilder {
                 Source::File { path, required } => {
                     if path.exists() {
                         let content = fs::read_to_string(&path)?;
-                        let expanded = expand_env_variables(&content)
+                        let interpolated = Interpolator::interpolate(&content)
+                            .inspect_err(|e| {
+                                error!("Interpolation error in file {}: {e}", path.display());
+                            })
                             .map_err(ConfigError::interpolation_error)?;
 
-                        let table: Table = toml::from_str::<Table>(&expanded).inspect_err(|e| {
+                        let table = toml::from_str::<Table>(&interpolated).inspect_err(|e| {
                             error!("Failed to parse TOML from {}: {}", path.display(), e);
                         })?;
 
@@ -84,8 +87,11 @@ impl ConfigBuilder {
                     }
                 }
                 Source::TomlString { content } => {
-                    let expanded =
-                        expand_env_variables(&content).map_err(ConfigError::interpolation_error)?;
+                    let expanded = Interpolator::interpolate(&content)
+                        .inspect_err(|e| {
+                            error!("Interpolation error in TOML string: {e}");
+                        })
+                        .map_err(ConfigError::interpolation_error)?;
 
                     let table: Table = toml::from_str::<Table>(&expanded).inspect_err(|e| {
                         error!("Failed to parse TOML string: {}", e);

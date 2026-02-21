@@ -7,6 +7,7 @@ Configuration management for Rust applications. Load configuration from TOML fil
 - Load configuration from TOML files
 - Multi file support with merging and overriding
 - Environment variable interpolation (`${VAR}` and `${VAR:default}`)
+- File loading directly on config files (`key = "file:path"`)
 
 ## Installation
 
