@@ -7,7 +7,7 @@ mod utils;
 use serde::de::DeserializeOwned;
 
 pub use builder::ConfigBuilder;
-pub use config::Config;
+pub use config::{Config, ConfigSourceInfo};
 pub use error::ConfigError;
 
 #[cfg(feature = "macros")]

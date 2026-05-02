@@ -1,19 +1,50 @@
-use crate::{ConfigBuilder, ConfigError, ConfigItem};
+#[cfg(feature = "validation")]
+use crate::ConfigError;
+use crate::{ConfigBuilder, ConfigItem};
 use serde::de::{DeserializeOwned, IntoDeserializer};
-use std::sync::Arc;
+use std::{path::Path, path::PathBuf, sync::Arc};
 use toml::{Table, Value};
 
 #[cfg(feature = "validation")]
 use validator::Validate;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfigSourceInfo {
+    File {
+        path: PathBuf,
+        required: bool,
+        found: bool,
+    },
+    TomlString,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Config {
     pub(crate) inner: Arc<Table>,
+    pub(crate) sources: Arc<[ConfigSourceInfo]>,
 }
 
 impl Config {
     pub fn builder() -> ConfigBuilder {
         ConfigBuilder::default()
+    }
+
+    /// Returns source provenance in build order.
+    pub fn sources(&self) -> &[ConfigSourceInfo] {
+        &self.sources
+    }
+
+    /// Iterates only existing file sources used during build.
+    pub fn file_sources(&self) -> impl Iterator<Item = &Path> {
+        self.sources.iter().filter_map(|source| match source {
+            ConfigSourceInfo::File { path, found, .. } if *found => Some(path.as_path()),
+            _ => None,
+        })
+    }
+
+    /// Returns the first existing file source used during build.
+    pub fn primary_file_source(&self) -> Option<&Path> {
+        self.file_sources().next()
     }
 
     /// Retrieves a configuration section.
@@ -358,5 +389,78 @@ key2 = "value2"
             .expect("failed to build config");
 
         assert!(config.inner.get("test").is_some());
+    }
+
+    #[test]
+    fn test_sources_preserve_order_and_found_status() {
+        let missing = PathBuf::from("/tmp/definitely-missing-thisconfig.toml");
+        let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path = temp_file.path().to_path_buf();
+        fs::write(&path, "[test]\nname = \"ordered\"\nport = 7000").expect("failed to write");
+
+        let config = Config::builder()
+            .add_file(&missing)
+            .add_toml_str("[test]\nname = \"inline\"")
+            .add_file(&path)
+            .build()
+            .expect("failed to build config");
+
+        assert_eq!(config.sources().len(), 3);
+        assert!(matches!(
+            &config.sources()[0],
+            ConfigSourceInfo::File {
+                path,
+                required: false,
+                found: false
+            } if path == &missing
+        ));
+        assert!(matches!(&config.sources()[1], ConfigSourceInfo::TomlString));
+        assert!(matches!(
+            &config.sources()[2],
+            ConfigSourceInfo::File {
+                path: p,
+                required: false,
+                found: true
+            } if p == &path
+        ));
+    }
+
+    #[test]
+    fn test_file_sources_only_existing_files() {
+        let missing = PathBuf::from("/tmp/definitely-missing-thisconfig-2.toml");
+        let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path = temp_file.path().to_path_buf();
+        fs::write(&path, "[test]\nname = \"files\"\nport = 7001").expect("failed to write");
+
+        let config = Config::builder()
+            .add_file(&missing)
+            .add_toml_str("[test]\nname = \"inline\"")
+            .add_file(&path)
+            .build()
+            .expect("failed to build config");
+
+        let files: Vec<&Path> = config.file_sources().collect();
+        assert_eq!(files, vec![path.as_path()]);
+    }
+
+    #[test]
+    fn test_primary_file_source_first_existing_file() {
+        let missing = PathBuf::from("/tmp/definitely-missing-thisconfig-3.toml");
+        let temp_file1 = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path1 = temp_file1.path().to_path_buf();
+        fs::write(&path1, "[test]\nname = \"first\"\nport = 7100").expect("failed to write");
+
+        let temp_file2 = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path2 = temp_file2.path().to_path_buf();
+        fs::write(&path2, "[test]\nname = \"second\"\nport = 7200").expect("failed to write");
+
+        let config = Config::builder()
+            .add_file(&missing)
+            .add_file(&path1)
+            .add_file(&path2)
+            .build()
+            .expect("failed to build config");
+
+        assert_eq!(config.primary_file_source(), Some(path1.as_path()));
     }
 }

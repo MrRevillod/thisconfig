@@ -1,4 +1,4 @@
-use crate::{Config, ConfigError, interpolation::Interpolator};
+use crate::{interpolation::Interpolator, Config, ConfigError, ConfigSourceInfo};
 use std::{fs, path::PathBuf, sync::Arc};
 use toml::Table;
 use tracing::{error, warn};
@@ -59,11 +59,18 @@ impl ConfigBuilder {
 
     fn load(sources: Vec<Source>) -> Result<Config, ConfigError> {
         let mut merged = Table::new();
+        let mut source_infos = Vec::new();
 
         for source in sources {
             match source {
                 Source::File { path, required } => {
                     if path.exists() {
+                        source_infos.push(ConfigSourceInfo::File {
+                            path: path.clone(),
+                            required,
+                            found: true,
+                        });
+
                         let content = fs::read_to_string(&path)?;
                         let interpolated = Interpolator::interpolate(&content)
                             .inspect_err(|e| {
@@ -77,16 +84,30 @@ impl ConfigBuilder {
 
                         Self::merge_tables(&mut merged, table);
                     } else if required {
+                        source_infos.push(ConfigSourceInfo::File {
+                            path: path.clone(),
+                            required,
+                            found: false,
+                        });
+
                         error!("Config file not found (required): {}", path.display());
 
                         return Err(ConfigError::FileNotFound(
                             path.to_str().unwrap_or_default().to_string(),
                         ));
                     } else {
+                        source_infos.push(ConfigSourceInfo::File {
+                            path: path.clone(),
+                            required,
+                            found: false,
+                        });
+
                         warn!("Config file not found (optional): {}", path.display());
                     }
                 }
                 Source::TomlString { content } => {
+                    source_infos.push(ConfigSourceInfo::TomlString);
+
                     let expanded = Interpolator::interpolate(&content)
                         .inspect_err(|e| {
                             error!("Interpolation error in TOML string: {e}");
@@ -104,6 +125,7 @@ impl ConfigBuilder {
 
         Ok(Config {
             inner: Arc::new(merged),
+            sources: Arc::from(source_infos),
         })
     }
 
