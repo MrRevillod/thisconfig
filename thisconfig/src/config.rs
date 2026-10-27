@@ -1,6 +1,4 @@
-#[cfg(feature = "validation")]
-use crate::ConfigError;
-use crate::{ConfigBuilder, ConfigItem};
+use crate::{ConfigBuilder, ConfigError, ConfigItem};
 use serde::de::{DeserializeOwned, IntoDeserializer};
 use std::{path::Path, path::PathBuf, sync::Arc};
 use toml::{Table, Value};
@@ -49,22 +47,47 @@ impl Config {
 
     /// Retrieves a configuration section.
     ///
+    /// Deserialization failures are logged and reported as `None`, so this is not
+    /// suitable for diagnostics. Use [`Config::try_get`] when a missing section and
+    /// an invalid section must be distinguished.
+    ///
     /// # Returns
     ///
-    /// `Some(T)` if found, `None` otherwise.
+    /// `Some(T)` if found and valid, `None` otherwise.
     pub fn get<T: DeserializeOwned + ConfigItem>(&self) -> Option<T> {
-        let key = T::key();
+        match self.try_get::<T>() {
+            Ok(value) => value,
+            Err(error) => {
+                tracing::error!(
+                    config_key = %T::key(),
+                    error = %error,
+                    "Failed to deserialize config section"
+                );
 
-        let item = self.inner.get(key).cloned()?;
-        let value = Value::into_deserializer(item);
-
-        match T::deserialize(value) {
-            Ok(v) => Some(v),
-            Err(e) => {
-                tracing::error!(config_key = %key, error = %e, "Failed to deserialize config section");
                 None
             }
         }
+    }
+
+    /// Retrieves a configuration section without collapsing errors into `None`.
+    ///
+    /// Unlike [`Config::get`], a section that exists but fails to deserialize is
+    /// returned as an error instead of being silently ignored.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigError::DeserializeError`] if the section exists but cannot be
+    /// deserialized into `T`.
+    pub fn try_get<T: DeserializeOwned + ConfigItem>(&self) -> Result<Option<T>, ConfigError> {
+        let key = T::key();
+
+        let Some(item) = self.inner.get(key).cloned() else {
+            return Ok(None);
+        };
+
+        let value = Value::into_deserializer(item);
+
+        T::deserialize(value).map(Some).map_err(ConfigError::from)
     }
 
     #[cfg(feature = "validation")]
@@ -179,6 +202,60 @@ mod tests {
         let result = config.get::<TestConfig>();
 
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_try_get_missing_section() {
+        let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path = temp_file.path();
+        fs::write(path, "[other]\nvalue = 1").expect("failed to write");
+
+        let config = Config::builder()
+            .add_required_file(path)
+            .build()
+            .expect("failed to load config");
+
+        assert!(matches!(config.try_get::<TestConfig>(), Ok(None)));
+    }
+
+    #[test]
+    fn test_try_get_invalid_section() {
+        let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path = temp_file.path();
+        fs::write(path, "[test]\nname = \"myapp\"\nport = \"not-a-port\"")
+            .expect("failed to write");
+
+        let config = Config::builder()
+            .add_required_file(path)
+            .build()
+            .expect("failed to load config");
+
+        assert!(matches!(
+            config.try_get::<TestConfig>(),
+            Err(ConfigError::DeserializeError { .. })
+        ));
+
+        // `get` keeps its lenient behavior.
+        assert!(config.get::<TestConfig>().is_none());
+    }
+
+    #[test]
+    fn test_try_get_valid_section() {
+        let temp_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path = temp_file.path();
+        fs::write(path, "[test]\nname = \"myapp\"\nport = 8080").expect("failed to write");
+
+        let config = Config::builder()
+            .add_required_file(path)
+            .build()
+            .expect("failed to load config");
+        let test_config = config
+            .try_get::<TestConfig>()
+            .expect("try_get should succeed")
+            .expect("section should exist");
+
+        assert_eq!(test_config.name, "myapp");
+        assert_eq!(test_config.port, 8080);
     }
 
     #[test]
